@@ -1,0 +1,139 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  EMPLOYEE
+  CLIENT
+  STUDENT
+  INVESTOR
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(CLIENT)
+  phone     String?
+  avatar    String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clientProfile   Client?
+  employeeProfile Employee?
+  leads           CRMLead[]
+  transactions    Transaction[]
+  payments        Payment[]
+  enrollments     Enrollment[]
+}
+
+model Client {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id])
+  company   String?
+  industry  String?
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Employee {
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  user       User     @relation(fields: [userId], references: [id])
+  department String?
+  position   String?
+  salary     Float?
+  joinedAt   DateTime @default(now())
+}
+
+model CRMLead {
+  id          String   @id @default(uuid())
+  name        String
+  email       String
+  phone       String?
+  company     String?
+  status      String   @default("NEW") // NEW, CONTACTED, NEGOTIATION, CLOSED, ACTIVE
+  value       Float?
+  notes       String?
+  assignedTo  String?
+  user        User?    @relation(fields: [assignedTo], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AIBot {
+  id          String   @id @default(uuid())
+  name        String
+  type        String   // CHATBOT, SOCIAL_AGENT, EMAIL_AUTOMATION, etc.
+  status      String   @default("ACTIVE")
+  model       String   @default("gpt-4")
+  usageCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Course {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  price       Float
+  thumbnail   String?
+  category    String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  enrollments Enrollment[]
+}
+
+model Enrollment {
+  id        String   @id @default(uuid())
+  userId    String
+  courseId  String
+  user      User     @relation(fields: [userId], references: [id])
+  course    Course   @relation(fields: [courseId], references: [id])
+  progress  Float    @default(0.0)
+  enrolledAt DateTime @default(now())
+}
+
+model Payment {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  amount      Float
+  currency    String   @default("USD")
+  method      String   // STRIPE, JAZZCASH, EASYPAISA, BANK
+  status      String   @default("PENDING") // PENDING, COMPLETED, FAILED
+  reference   String?
+  createdAt   DateTime @default(now())
+}
+
+model Transaction {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  amount      Float
+  type        String   // DEPOSIT, WITHDRAWAL, PROFIT
+  status      String   @default("COMPLETED")
+  createdAt   DateTime @default(now())
+}
+
+model Analytics {
+  id          String   @id @default(uuid())
+  date        DateTime @default(now())
+  metric      String   // REVENUE, USERS, VISITORS
+  value       Float
+}
