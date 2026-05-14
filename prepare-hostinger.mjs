@@ -50,7 +50,29 @@ async function prepareHostingerDeploy() {
     }
   }
 
-  // 4. Create a zip file of the standalone directory
+  // 4. Copy .htaccess into standalone directory (required for Hostinger Passenger)
+  console.log('➡️ Copying .htaccess into standalone directory...');
+  const htaccessSrc = path.join(__dirname, '.htaccess');
+  const htaccessDest = path.join(standaloneDir, '.htaccess');
+  if (fs.existsSync(htaccessSrc)) {
+    fs.copyFileSync(htaccessSrc, htaccessDest);
+  } else {
+    console.warn('⚠️ Warning: .htaccess not found at project root.');
+  }
+
+  // 5. Patch server.js to remove hardcoded Windows paths (they break on Linux)
+  console.log('➡️ Patching server.js for Linux compatibility...');
+  const serverJsPath = path.join(standaloneDir, 'server.js');
+  if (fs.existsSync(serverJsPath)) {
+    let serverJs = fs.readFileSync(serverJsPath, 'utf8');
+    // Replace Windows outputFileTracingRoot with a relative placeholder
+    serverJs = serverJs.replace(/"outputFileTracingRoot":"[^"]*"/g, '"outputFileTracingRoot":""');
+    // Replace Windows turbopack root
+    serverJs = serverJs.replace(/"turbopack":\{"root":"[^"]*"\}/g, '"turbopack":{"root":""}');
+    fs.writeFileSync(serverJsPath, serverJs);
+  }
+
+  // 6. Create a zip file of the standalone directory
   console.log('🤐 Creating hostinger-crm-app.zip...');
   
   try {
