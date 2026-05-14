@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { MongoClient } from "mongodb";
 import { Resend } from "resend";
+import { prisma } from "@/lib/prisma";
 
 const uri = process.env.MONGODB_URI || "";
 let client: MongoClient | null = null;
@@ -19,18 +20,32 @@ export async function POST(request: Request) {
   try {
     const { name, email, service, message } = await request.json();
 
-    // Store in Database
-    const db = await connectToDatabase();
-    const leadsCollection = db.collection("Lead");
-    
-    const lead = await leadsCollection.insertOne({
-      name,
-      email,
-      subject: service,
-      message,
-      status: "NEW",
-      createdAt: new Date(),
+    // Primary storage: PostgreSQL CRMLead (admin dashboard)
+    const lead = await prisma.cRMLead.create({
+      data: {
+        name,
+        email,
+        company: null,
+        phone: null,
+        status: "NEW",
+        value: null,
+        notes: `Service: ${service}\n\n${message}`,
+      },
     });
+
+    // Secondary storage: MongoDB (non-fatal — skipped if Atlas is unreachable)
+    await connectToDatabase()
+      .then((db) =>
+        db.collection("Lead").insertOne({
+          name,
+          email,
+          subject: service,
+          message,
+          status: "NEW",
+          createdAt: new Date(),
+        })
+      )
+      .catch((err) => console.error("[MongoDB sync] skipped:", err.message));
 
     // Send Email Notification
     if (process.env.RESEND_API_KEY) {
@@ -56,7 +71,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(
-      { success: true, leadId: lead.insertedId },
+      { success: true, leadId: lead.id },
       {
         status: 200,
         headers: {
