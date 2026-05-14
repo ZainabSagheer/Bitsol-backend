@@ -44,14 +44,14 @@ export async function GET(req: NextRequest) {
     avatar: user.avatar,
     company: user.clientProfile?.company ?? null,
     industry: user.clientProfile?.industry ?? null,
-    payments: user.payments.map((p) => ({
+    payments: user.payments.map((p: (typeof user.payments)[number]) => ({
       id: p.id,
       amount: p.amount,
       currency: p.currency,
       status: p.status,
       createdAt: p.createdAt,
     })),
-    enrollments: user.enrollments.map((e) => ({
+    enrollments: user.enrollments.map((e: (typeof user.enrollments)[number]) => ({
       courseTitle: e.course.title,
       progress: e.progress,
       enrolledAt: e.enrolledAt,
