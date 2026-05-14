@@ -38,7 +38,19 @@ async function prepareHostingerDeploy() {
     console.warn('⚠️ Warning: public directory not found.');
   }
 
-  // 3. Create a zip file of the standalone directory
+  // 3. Remove build scripts from standalone package.json to prevent Hostinger auto-build errors
+  console.log('➡️ Removing build scripts from standalone package.json...');
+  const standalonePkgPath = path.join(standaloneDir, 'package.json');
+  if (fs.existsSync(standalonePkgPath)) {
+    const pkg = JSON.parse(fs.readFileSync(standalonePkgPath, 'utf8'));
+    if (pkg.scripts) {
+      pkg.scripts.build = 'echo "Already built"';
+      pkg.scripts.dev = 'echo "Cannot run dev in standalone"';
+      fs.writeFileSync(standalonePkgPath, JSON.stringify(pkg, null, 2));
+    }
+  }
+
+  // 4. Create a zip file of the standalone directory
   console.log('🤐 Creating hostinger-crm-app.zip...');
   
   try {
