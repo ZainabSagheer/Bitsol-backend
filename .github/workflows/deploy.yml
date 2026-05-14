@@ -40,6 +40,6 @@ jobs:
           script: |
             cd ~/domains/admin.bitsolmarketing.com/public_html
             git pull origin master
-            npm ci --omit=dev
+            npm ci
             npm run build
             touch tmp/restart.txt
