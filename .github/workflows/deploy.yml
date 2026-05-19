@@ -9,64 +9,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build Next.js app
-        run: npm run build
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          MONGODB_URI: ${{ secrets.MONGODB_URI }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
-          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
-          NODE_ENV: production
-
-      - name: Prepare standalone bundle
-        run: |
-          cp -r .next/static .next/standalone/.next/static
-          cp -r public .next/standalone/public
-          cp -r prisma .next/standalone/prisma || true
-          mkdir -p .next/standalone/node_modules/.prisma/client
-          cp -r node_modules/.prisma/client/. .next/standalone/node_modules/.prisma/client/ || true
-          mkdir -p .next/standalone/node_modules/@prisma/client
-          cp -r node_modules/@prisma/client/. .next/standalone/node_modules/@prisma/client/ || true
-          cp .htaccess .next/standalone/.htaccess || true
-
-      - name: Write .env to standalone
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          MONGODB_URI: ${{ secrets.MONGODB_URI }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
-          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
-        run: |
-          {
-            echo "NODE_ENV=production"
-            printf 'DATABASE_URL="%s"\n' "$DATABASE_URL"
-            printf 'MONGODB_URI="%s"\n' "$MONGODB_URI"
-            printf 'JWT_SECRET="%s"\n' "$JWT_SECRET"
-            printf 'RESEND_API_KEY="%s"\n' "$RESEND_API_KEY"
-            printf 'ADMIN_EMAIL="%s"\n' "$ADMIN_EMAIL"
-            printf 'ADMIN_PASSWORD="%s"\n' "$ADMIN_PASSWORD"
-          } > .next/standalone/.env
-
-      - name: Create deployment tarball
-        run: |
-          cd .next/standalone
-          tar -czf ../../deploy.tar.gz .
-
       - name: Setup SSH key
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
@@ -76,27 +18,21 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -p 65002 145.79.30.66 >> ~/.ssh/known_hosts 2>/dev/null
 
-      - name: Upload tarball to Hostinger
+      - name: Deploy and Build on Hostinger
         run: |
-          scp -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key -P 65002 \
-            deploy.tar.gz \
-            u293105347@145.79.30.66:/home/u293105347/domains/admin.bitsolmarketing.com/
-
-      - name: Extract and restart on Hostinger
-        run: |
-          DEPLOY_DIR=/home/u293105347/domains/admin.bitsolmarketing.com/public_html
-          TAR_FILE=/home/u293105347/domains/admin.bitsolmarketing.com/deploy.tar.gz
-          SSH="ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key -p 65002 u293105347@145.79.30.66"
-
-          # Clean old files inside public_html but do NOT delete public_html itself
-          $SSH "find $DEPLOY_DIR -mindepth 1 -delete 2>/dev/null || true"
-          $SSH "tar -xzf $TAR_FILE -C $DEPLOY_DIR && rm -f $TAR_FILE"
-
-          # Fix permissions so Apache can read the directory regardless of group ownership
-          $SSH "chmod 755 $DEPLOY_DIR"
-          $SSH "find $DEPLOY_DIR -type d -exec chmod 755 {} \;"
-          $SSH "find $DEPLOY_DIR -type f -exec chmod 644 {} \;"
-
-          # Phusion Passenger graceful restart
-          $SSH "mkdir -p $DEPLOY_DIR/tmp && touch $DEPLOY_DIR/tmp/restart.txt"
-          $SSH "echo 'Deployed at $(date)'"
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key -p 65002 u293105347@145.79.30.66 << 'EOF'
+            cd ~/domains/admin.bitsolmarketing.com/public_html
+            
+            # Pull latest changes (ignoring local modifications if any)
+            git reset --hard
+            git pull origin master
+            
+            # Install and Build
+            npm ci
+            npm run build
+            
+            # Restart Passenger
+            mkdir -p tmp
+            touch tmp/restart.txt
+            echo "Deployment completed at $(date)"
+          EOF
