@@ -88,8 +88,13 @@ jobs:
           TAR_FILE=/home/u293105347/domains/admin.bitsolmarketing.com/deploy.tar.gz
           SSH="ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key -p 65002 u293105347@145.79.30.66"
 
-          $SSH "rm -rf ${DEPLOY_DIR}_old; mv $DEPLOY_DIR ${DEPLOY_DIR}_old 2>/dev/null || true; mkdir -p $DEPLOY_DIR"
+          # Clean old files inside public_html but do NOT delete public_html itself
+          $SSH "find $DEPLOY_DIR -mindepth 1 -delete 2>/dev/null || true"
           $SSH "tar -xzf $TAR_FILE -C $DEPLOY_DIR && rm -f $TAR_FILE"
 
+          # Fix permissions just in case
+          $SSH "chmod 750 $DEPLOY_DIR"
+
+          # Phusion Passenger graceful restart
           $SSH "mkdir -p $DEPLOY_DIR/tmp && touch $DEPLOY_DIR/tmp/restart.txt"
           $SSH "echo 'Deployed at $(date)'"
