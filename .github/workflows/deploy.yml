@@ -18,12 +18,12 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
       - name: Create .env.production
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          MONGODB_URI: ${{ secrets.MONGODB_URI }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
-          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          DATABASE_URL: "postgresql://neondb_owner:npg_9VRMxTSNh7uf@ep-rapid-tree-apa8oup5.c-7.us-east-1.aws.neon.tech/neondb?sslmode=require"
+          MONGODB_URI: "mongodb+srv://adnanbashir7895_db_user:<b8x8XXZD_-9ajVk>@cluster0.mnpgyej.mongodb.net/?appName=Cluster0"
+          JWT_SECRET: "4fA7b9E2c1D8aB0f3E6dC9b4A7e1F0d2"
+          RESEND_API_KEY: "re_3Yw6sLwa_LqeJ5bQK1UWfXAqk5ZZHg6NH"
+          ADMIN_EMAIL: "adnan.bashir7895@gmail.com"
+          ADMIN_PASSWORD: "Pakistan@548548@*"
         run: |
           cat << EOF > .env.production
           DATABASE_URL="${DATABASE_URL}"
