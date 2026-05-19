@@ -16,16 +16,38 @@ jobs:
           mkdir -p ~/.ssh
           printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -p 65002 145.79.30.66 >> ~/.ssh/known_hosts 2>/dev/null
+      - name: Create .env.production
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+        run: |
+          cat << EOF > .env.production
+          DATABASE_URL="${DATABASE_URL}"
+          MONGODB_URI="${MONGODB_URI}"
+          JWT_SECRET="${JWT_SECRET}"
+          RESEND_API_KEY="${RESEND_API_KEY}"
+          ADMIN_EMAIL="${ADMIN_EMAIL}"
+          ADMIN_PASSWORD="${ADMIN_PASSWORD}"
+          NODE_ENV="production"
+          EOF
 
       - name: Deploy and Build on Hostinger
         run: |
+          scp -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key -P 65002 .env.production u293105347@145.79.30.66:/home/u293105347/domains/admin.bitsolmarketing.com/public_html/
+          
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key -p 65002 u293105347@145.79.30.66 << 'EOF'
             cd ~/domains/admin.bitsolmarketing.com/public_html
             
             # Pull latest changes (ignoring local modifications if any)
             git reset --hard
             git pull origin master
+            
+            # Write .env as well just in case Next.js fallback
+            cp .env.production .env
             
             # Install and Build
             npm ci
