@@ -1,15 +1,21 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const { searchParams } = new URL(req.url);
+    const published = searchParams.get('published');
+    const where = published === 'true' ? { published: true } : {};
+
     const blogs = await prisma.blog.findMany({
+      where,
       orderBy: { createdAt: "desc" },
       include: { author: { select: { name: true } } },
     });
     return NextResponse.json(blogs);
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch blogs" }, { status: 500 });
+  } catch (error: any) {
+    console.error("GET /api/blogs error:", error);
+    return NextResponse.json({ error: error.message || "Failed to fetch blogs" }, { status: 500 });
   }
 }
 
