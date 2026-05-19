@@ -11,7 +11,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       include: { author: { select: { name: true } } },
     });
     if (!blog) return NextResponse.json({ error: "Blog not found" }, { status: 404 });
-    return NextResponse.json(blog);
+    return NextResponse.json({ ...blog, image: blog.coverImage });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -25,13 +25,16 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       where: { id },
       data: {
         title: data.title,
-        slug: data.title ? data.title.toLowerCase().replace(/[^a-z0-9]+/g, "-") : undefined,
+        slug: data.slug || (data.title ? data.title.toLowerCase().replace(/[^a-z0-9]+/g, "-") : undefined),
         content: data.content,
         excerpt: data.excerpt,
+        metaDescription: data.metaDescription,
+        coverImage: data.coverImage,
+        tags: data.tags,
         published: data.published,
       },
     });
-    return NextResponse.json(blog);
+    return NextResponse.json({ ...blog, image: blog.coverImage });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

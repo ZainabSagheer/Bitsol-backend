@@ -17,7 +17,16 @@ type Blog = {
 export default function BlogsPage() {
   const [blogs, setBlogs] = useState<Blog[]>([]);
   const [isCreating, setIsCreating] = useState(false);
-  const [formData, setFormData] = useState({ title: "", content: "", published: false });
+  const [formData, setFormData] = useState({ 
+    title: "", 
+    slug: "",
+    content: "", 
+    excerpt: "",
+    metaDescription: "",
+    coverImage: "",
+    tags: "",
+    published: false 
+  });
 
   useEffect(() => {
     fetchBlogs();
@@ -32,13 +41,20 @@ export default function BlogsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const payload = {
+      ...formData,
+      tags: formData.tags ? formData.tags.split(",").map(t => t.trim()).filter(Boolean) : []
+    };
+
     const res = await fetch("/api/blogs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(formData),
+      body: JSON.stringify(payload),
     });
     if (res.ok) {
-      setFormData({ title: "", content: "", published: false });
+      setFormData({ 
+        title: "", slug: "", content: "", excerpt: "", metaDescription: "", coverImage: "", tags: "", published: false 
+      });
       setIsCreating(false);
       fetchBlogs();
     }
@@ -85,28 +101,89 @@ export default function BlogsPage() {
           >
             <div className="space-y-4 rounded-xl border bg-card p-6 shadow-sm mb-6">
               <h2 className="text-xl font-semibold">Create New Post</h2>
-              <div>
-                <label className="block text-sm font-medium mb-1.5 text-foreground/80">Title</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Enter a catchy title..."
-                  className="w-full rounded-lg border bg-background/50 p-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                />
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1.5 text-foreground/80">Title *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Enter a catchy title..."
+                    className="w-full rounded-lg border bg-background/50 p-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1.5 text-foreground/80">Slug (optional)</label>
+                  <input
+                    type="text"
+                    placeholder="custom-url-slug"
+                    className="w-full rounded-lg border bg-background/50 p-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                    value={formData.slug}
+                    onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                  />
+                </div>
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1.5 text-foreground/80">Cover Image URL</label>
+                  <input
+                    type="text"
+                    placeholder="https://..."
+                    className="w-full rounded-lg border bg-background/50 p-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                    value={formData.coverImage}
+                    onChange={(e) => setFormData({ ...formData, coverImage: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1.5 text-foreground/80">Tags (comma separated)</label>
+                  <input
+                    type="text"
+                    placeholder="AI, Marketing, SEO"
+                    className="w-full rounded-lg border bg-background/50 p-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                    value={formData.tags}
+                    onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1.5 text-foreground/80">Excerpt</label>
+                  <textarea
+                    rows={3}
+                    placeholder="Short summary..."
+                    className="w-full rounded-lg border bg-background/50 p-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all resize-y"
+                    value={formData.excerpt}
+                    onChange={(e) => setFormData({ ...formData, excerpt: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1.5 text-foreground/80">Meta Description</label>
+                  <textarea
+                    rows={3}
+                    placeholder="SEO description..."
+                    className="w-full rounded-lg border bg-background/50 p-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all resize-y"
+                    value={formData.metaDescription}
+                    onChange={(e) => setFormData({ ...formData, metaDescription: e.target.value })}
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="block text-sm font-medium mb-1.5 text-foreground/80">Content</label>
+                <label className="block text-sm font-medium mb-1.5 text-foreground/80">Content * (HTML supported)</label>
                 <textarea
                   required
                   rows={8}
-                  placeholder="Write your amazing content here..."
-                  className="w-full rounded-lg border bg-background/50 p-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all resize-y"
+                  placeholder="<p>Write your amazing content here...</p>"
+                  className="w-full font-mono rounded-lg border bg-background/50 p-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all resize-y"
                   value={formData.content}
                   onChange={(e) => setFormData({ ...formData, content: e.target.value })}
                 />
               </div>
+
               <div className="flex items-center gap-3 py-2">
                 <div 
                   className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-colors ${formData.published ? 'bg-primary' : 'bg-muted'}`}

@@ -12,7 +12,14 @@ export async function GET(req: Request) {
       orderBy: { createdAt: "desc" },
       include: { author: { select: { name: true } } },
     });
-    return NextResponse.json(blogs);
+    
+    // Map coverImage to image for the frontend
+    const mappedBlogs = blogs.map(blog => ({
+      ...blog,
+      image: blog.coverImage
+    }));
+    
+    return NextResponse.json(mappedBlogs);
   } catch (error: any) {
     console.error("GET /api/blogs error:", error);
     return NextResponse.json({ error: error.message || "Failed to fetch blogs" }, { status: 500 });
@@ -47,14 +54,17 @@ export async function POST(req: Request) {
     const blog = await prisma.blog.create({
       data: {
         title: data.title,
-        slug: data.title.toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-" + Date.now().toString().slice(-4),
+        slug: data.slug || data.title.toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-" + Date.now().toString().slice(-4),
         content: data.content,
         excerpt: data.excerpt || null,
+        metaDescription: data.metaDescription || null,
+        coverImage: data.coverImage || null,
+        tags: data.tags || [],
         published: data.published || false,
         authorId: user.id,
       },
     });
-    return NextResponse.json(blog, { status: 201 });
+    return NextResponse.json({ ...blog, image: blog.coverImage }, { status: 201 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
