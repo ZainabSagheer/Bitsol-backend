@@ -18,7 +18,8 @@ import {
   Settings,
   Menu,
   ChevronLeft,
-  LogOut
+  LogOut,
+  FileText
 } from "lucide-react";
 
 const menuItems = [
@@ -32,6 +33,7 @@ const menuItems = [
   { icon: Share2, label: "Marketing", href: "/dashboard/marketing" },
   { icon: PieChart, label: "Analytics", href: "/dashboard/analytics" },
   { icon: HeadphonesIcon, label: "Support", href: "/dashboard/support" },
+  { icon: FileText, label: "Blogs", href: "/dashboard/blogs" },
   { icon: Settings, label: "Settings", href: "/dashboard/settings" },
 ];
 

@@ -36,6 +36,7 @@ model User {
   transactions    Transaction[]
   payments        Payment[]
   enrollments     Enrollment[]
+  blogs           Blog[]
 }
 
 model Client {
@@ -136,4 +137,18 @@ model Analytics {
   date        DateTime @default(now())
   metric      String   // REVENUE, USERS, VISITORS
   value       Float
+}
+
+model Blog {
+  id          String   @id @default(uuid())
+  title       String
+  slug        String   @unique
+  content     String
+  excerpt     String?
+  coverImage  String?
+  published   Boolean  @default(false)
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
