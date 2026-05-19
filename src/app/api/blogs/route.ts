@@ -33,7 +33,15 @@ export async function POST(req: Request) {
     }
 
     if (!user) {
-      return NextResponse.json({ error: "No users found in database to author this blog" }, { status: 400 });
+      // Auto-create a default admin user if the database is completely empty
+      user = await prisma.user.create({
+        data: {
+          email: process.env.ADMIN_EMAIL || "admin@bitsolmarketing.com",
+          password: "auto-generated-placeholder",
+          name: "System Admin",
+          role: "SUPER_ADMIN"
+        }
+      });
     }
 
     const blog = await prisma.blog.create({
