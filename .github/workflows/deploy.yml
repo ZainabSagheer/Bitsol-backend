@@ -92,8 +92,10 @@ jobs:
           $SSH "find $DEPLOY_DIR -mindepth 1 -delete 2>/dev/null || true"
           $SSH "tar -xzf $TAR_FILE -C $DEPLOY_DIR && rm -f $TAR_FILE"
 
-          # Fix permissions just in case
-          $SSH "chmod 750 $DEPLOY_DIR"
+          # Fix permissions so Apache can read the directory regardless of group ownership
+          $SSH "chmod 755 $DEPLOY_DIR"
+          $SSH "find $DEPLOY_DIR -type d -exec chmod 755 {} \;"
+          $SSH "find $DEPLOY_DIR -type f -exec chmod 644 {} \;"
 
           # Phusion Passenger graceful restart
           $SSH "mkdir -p $DEPLOY_DIR/tmp && touch $DEPLOY_DIR/tmp/restart.txt"
