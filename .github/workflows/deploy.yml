@@ -9,14 +9,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Setup SSH key
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-        run: |
-          mkdir -p ~/.ssh
-          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-      - name: Create .env.production
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Next.js app
+        run: npm run build
         env:
           DATABASE_URL: "postgresql://neondb_owner:npg_9VRMxTSNh7uf@ep-rapid-tree-apa8oup5.c-7.us-east-1.aws.neon.tech/neondb?sslmode=require"
           MONGODB_URI: "mongodb+srv://adnanbashir7895_db_user:<b8x8XXZD_-9ajVk>@cluster0.mnpgyej.mongodb.net/?appName=Cluster0"
@@ -24,37 +30,71 @@ jobs:
           RESEND_API_KEY: "re_3Yw6sLwa_LqeJ5bQK1UWfXAqk5ZZHg6NH"
           ADMIN_EMAIL: "adnan.bashir7895@gmail.com"
           ADMIN_PASSWORD: "Pakistan@548548@*"
+          NODE_ENV: production
+
+      - name: Prepare standalone bundle
         run: |
-          cat << EOF > .env.production
-          DATABASE_URL="${DATABASE_URL}"
-          MONGODB_URI="${MONGODB_URI}"
-          JWT_SECRET="${JWT_SECRET}"
-          RESEND_API_KEY="${RESEND_API_KEY}"
-          ADMIN_EMAIL="${ADMIN_EMAIL}"
-          ADMIN_PASSWORD="${ADMIN_PASSWORD}"
+          cp -r .next/static .next/standalone/.next/static
+          cp -r public .next/standalone/public
+          cp -r prisma .next/standalone/prisma || true
+          mkdir -p .next/standalone/node_modules/.prisma/client
+          cp -r node_modules/.prisma/client/. .next/standalone/node_modules/.prisma/client/ || true
+          mkdir -p .next/standalone/node_modules/@prisma/client
+          cp -r node_modules/@prisma/client/. .next/standalone/node_modules/@prisma/client/ || true
+          cp .htaccess .next/standalone/.htaccess || true
+
+      - name: Write hardcoded .env.production to standalone
+        run: |
+          cat << EOF > .next/standalone/.env.production
+          DATABASE_URL="postgresql://neondb_owner:npg_9VRMxTSNh7uf@ep-rapid-tree-apa8oup5.c-7.us-east-1.aws.neon.tech/neondb?sslmode=require"
+          MONGODB_URI="mongodb+srv://adnanbashir7895_db_user:<b8x8XXZD_-9ajVk>@cluster0.mnpgyej.mongodb.net/?appName=Cluster0"
+          JWT_SECRET="4fA7b9E2c1D8aB0f3E6dC9b4A7e1F0d2"
+          RESEND_API_KEY="re_3Yw6sLwa_LqeJ5bQK1UWfXAqk5ZZHg6NH"
+          ADMIN_EMAIL="adnan.bashir7895@gmail.com"
+          ADMIN_PASSWORD="Pakistan@548548@*"
           NODE_ENV="production"
           EOF
+          # Create a copy as .env just to be absolutely sure
+          cp .next/standalone/.env.production .next/standalone/.env
 
-      - name: Deploy and Build on Hostinger
+      - name: Create deployment tarball
         run: |
-          scp -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key -P 65002 .env.production u293105347@145.79.30.66:/home/u293105347/domains/admin.bitsolmarketing.com/public_html/
-          
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key -p 65002 u293105347@145.79.30.66 << 'EOF'
-            cd ~/domains/admin.bitsolmarketing.com/public_html
-            
-            # Pull latest changes (ignoring local modifications if any)
-            git reset --hard
-            git pull origin master
-            
-            # Write .env as well just in case Next.js fallback
-            cp .env.production .env
-            
-            # Install and Build
-            npm ci
-            npm run build
-            
-            # Restart Passenger
-            mkdir -p tmp
-            touch tmp/restart.txt
-            echo "Deployment completed at $(date)"
-          EOF
+          cd .next/standalone
+          tar -czf ../../deploy.tar.gz .
+
+      - name: Setup SSH key
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p 65002 145.79.30.66 >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Upload tarball to Hostinger
+        run: |
+          scp -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key -P 65002 \
+            deploy.tar.gz \
+            u293105347@145.79.30.66:/home/u293105347/domains/admin.bitsolmarketing.com/
+
+      - name: Extract and install dependencies on Hostinger
+        run: |
+          DEPLOY_DIR=/home/u293105347/domains/admin.bitsolmarketing.com/public_html
+          TAR_FILE=/home/u293105347/domains/admin.bitsolmarketing.com/deploy.tar.gz
+          SSH="ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key -p 65002 u293105347@145.79.30.66"
+
+          # Clean old files inside public_html but do NOT delete public_html itself
+          $SSH "find $DEPLOY_DIR -mindepth 1 -delete 2>/dev/null || true"
+          $SSH "tar -xzf $TAR_FILE -C $DEPLOY_DIR && rm -f $TAR_FILE"
+
+          # Fix permissions so Apache can read the directory regardless of group ownership
+          $SSH "chmod 755 $DEPLOY_DIR"
+          $SSH "find $DEPLOY_DIR -type d -exec chmod 755 {} \;"
+          $SSH "find $DEPLOY_DIR -type f -exec chmod 644 {} \;"
+
+          # Install critical pg dependencies on server just in case
+          $SSH "cd $DEPLOY_DIR && npm install --no-save pg @prisma/adapter-pg"
+
+          # Phusion Passenger graceful restart
+          $SSH "mkdir -p $DEPLOY_DIR/tmp && touch $DEPLOY_DIR/tmp/restart.txt"
+          $SSH "echo 'Deployed at $(date)'"
